@@ -14,14 +14,16 @@ module Capistrano
           @bucket_name = configuration[:aws_releases_bucket]
           raise Capistrano::Error, "Missing configuration[:aws_releases_bucket]" if @bucket_name.nil?
 
-          @bucket_prefix = configuration[:aws_releases_prefix]
+          @bucket_prefix = configuration[:aws_releases_bucket_prefix]
           raise Capistrano::Error, "Missing configuration[:aws_releases_bucket_prefix]" if @bucket_prefix.nil?
 
           aws_config = YAML::load(ERB.new(IO.read("config/aws.yml")).result)[rails_env]
+          aws_config.delete "bucket"
+          aws_config = Hash[ aws_config.map{|k,v| [k.to_s,v] } ]
 
-          AWS.config(@aws_config)
+          AWS.config(aws_config)
 
-          @bucket = AWS::S3.buckets.create(@bucket_name)
+          @bucket = AWS::S3.new.buckets.create(@bucket_name)
 
         end
 
@@ -38,19 +40,17 @@ module Capistrano
           package_path = filename
           package_name = File.basename(package_path)
 
+          s3_path = File.join [ bucket_prefix, package_name ].compact
+
           if configuration.dry_run
-            logger.debug s3_push_cmd
+            logger.debug "Would upload to s3://#{@bucket}/#{s3_path}"
           else
-            system(s3_push_cmd)
-            raise Capistrano::Error, "shell command failed with return code #{$?}" if $? != 0
+
+            @bucket.objects[s3_path].write(File.open(filename), :acl => :private, :server_side_encryption => :aes256)
           end
 
-          # run "s3cmd get s3://#{bucket_name}/#{rails_env}/#{package_name} #{remote_filename} 2>&1"
-          run "s3cmd get s3://#{File.join [bucket_name, bucket_prefix, rails_env, package_name].compact} #{remote_filename} 2>&1"
+          run "s3cmd get s3://#{bucket_name}/#{s3_path} #{remote_filename} 2>&1"
           run "cd #{configuration[:releases_path]} && #{decompress(remote_filename).join(" ")} && rm #{remote_filename}"
-          logger.debug "done!"
-
-          build_aws_install_script
         end
 
         def binding
