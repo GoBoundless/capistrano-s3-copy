@@ -11,5 +11,5 @@ Capistrano::Configuration.instance(false).load do
     end
   end
 
-  after 'deploy', 's3_copy:store_aws_install_script_on_success'
+  # after 'deploy', 's3_copy:store_aws_install_script_on_success'
 end
