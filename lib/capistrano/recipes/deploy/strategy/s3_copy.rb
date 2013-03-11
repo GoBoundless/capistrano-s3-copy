@@ -53,6 +53,14 @@ module Capistrano
           run "cd #{configuration[:releases_path]} && #{decompress(remote_filename).join(" ")} && rm #{remote_filename}"
         end
 
+        def build directory
+          execute "running build script on #{directory}" do
+            with_env "RAILS_ENV", configuration[:rails_env] do
+              Dir.chdir(directory) { system(build_script) }
+            end
+          end if build_script
+        end
+
         def binding
           super
         end
