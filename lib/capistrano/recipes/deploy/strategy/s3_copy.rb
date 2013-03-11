@@ -11,11 +11,11 @@ module Capistrano
         def initialize(config={})
           super
 
-          @bucket_name = configuration[:aws_releases_bucket]
-          raise Capistrano::Error, "Missing configuration[:aws_releases_bucket]" if @bucket_name.nil?
+          @bucket_name = configuration[:releases_bucket]
+          raise Capistrano::Error, "Missing configuration[:releases_bucket]" if @bucket_name.nil?
 
-          @bucket_prefix = configuration[:aws_releases_bucket_prefix]
-          raise Capistrano::Error, "Missing configuration[:aws_releases_bucket_prefix]" if @bucket_prefix.nil?
+          @bucket_prefix = configuration[:releases_bucket_prefix]
+          # raise Capistrano::Error, "Missing configuration[:releases_bucket_prefix]" if @bucket_prefix.nil?
 
           aws_config = YAML::load(ERB.new(IO.read("config/aws.yml")).result)[rails_env]
           aws_config.delete "bucket"
