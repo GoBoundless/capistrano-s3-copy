@@ -15,7 +15,6 @@ module Capistrano
           raise Capistrano::Error, "Missing configuration[:releases_bucket]" if @bucket_name.nil?
 
           @bucket_prefix = configuration[:releases_bucket_prefix]
-          # raise Capistrano::Error, "Missing configuration[:releases_bucket_prefix]" if @bucket_prefix.nil?
 
           aws_config = YAML::load(ERB.new(IO.read("config/aws.yml")).result)[rails_env]
           aws_config.delete "bucket"
@@ -39,14 +38,16 @@ module Capistrano
         def distribute!
           package_path = filename
           package_name = File.basename(package_path)
-
+          s3_options = { :acl => :private, :server_side_encryption => :aes256 }
           s3_path = File.join [ bucket_prefix, package_name ].compact
+          marker = File.join [ bucket_prefix, "latest.tar.gz" ].compact
 
           if configuration.dry_run
-            logger.debug "Would upload to s3://#{@bucket}/#{s3_path}"
+            logger.debug "Would upload to s3://#{@bucket_name}/#{s3_path}"
           else
-
-            @bucket.objects[s3_path].write(File.open(filename), :acl => :private, :server_side_encryption => :aes256)
+            logger.info "Uploading to s3://#{@bucket_name}/#{s3_path}"
+            @bucket.objects[s3_path].write(File.open(filename), s3_options)
+            @bucket.objects[marker].copy_from(s3_path, s3_options.merge(:metadata => {:original => s3_path}))
           end
 
           run "s3cmd get s3://#{bucket_name}/#{s3_path} #{remote_filename} 2>&1"
